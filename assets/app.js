@@ -520,7 +520,6 @@ function renderToday() {
         </div>
         <div class="adherence-ring" style="--progress:${stats.adherence}%"><span>${stats.adherence}%</span></div>
       </div>
-      ${renderAlarmPermissionCard()}
       ${renderGuardianOptionalCard()}
       <div class="stats">
         <div class="stat"><b>${state.medicines.length}</b><span>${tr("registeredMeds")}</span></div>
@@ -529,20 +528,6 @@ function renderToday() {
       </div>
       ${doses.map(renderDoseCard).join("") || `<div class="empty">${tr("noMeds")}</div>`}
     </section>
-  `;
-}
-
-function renderAlarmPermissionCard() {
-  if (!state.medicines.length) return "";
-  return `
-    <div class="card alarm-card" style="padding:16px">
-      <strong>${state.alarmEnabled ? "Alarm ready" : "Enable real alarm"}</strong>
-      <p>${state.alarmEnabled ? "In-app sound is ready. Add iPhone Calendar alarms for native mobile reminders." : "Tap once after setting medicine. iPhone requires this to allow alarm sound."}</p>
-      <div class="actions">
-        <button class="btn ${state.alarmEnabled ? "secondary" : ""}" data-enable-alarms>${state.alarmEnabled ? "Test alarm" : "Enable alarm"}</button>
-        <button class="btn" data-download-native-alarms>iPhone alarm file</button>
-      </div>
-    </div>
   `;
 }
 
@@ -667,7 +652,7 @@ function renderRegistrationComplete() {
         <button data-tab-jump="search"><b>${tr("heroInfo")}</b><p>${tr("heroInfoText")}</p></button>
         <button data-tab-jump="shape"><b>${tr("heroShape")}</b><p>${tr("heroShapeText")}</p></button>
       </div>
-      ${renderAlarmPermissionCard()}
+      <div class="notice">iPhone native alarm file was created. Open the downloaded file and add it to Calendar to receive system medication alerts.</div>
       <button class="btn" data-tab-jump="today">${tr("goToday")}</button>
     </section>
   `;
@@ -758,8 +743,6 @@ function bindGlobal() {
     setState({ tab });
   }));
   $$("[data-confirm]").forEach((button) => button.addEventListener("click", () => confirmDose(button.dataset.confirm)));
-  $$("[data-enable-alarms]").forEach((button) => button.addEventListener("click", enableAlarms));
-  $$("[data-download-native-alarms]").forEach((button) => button.addEventListener("click", downloadNativeAlarmFile));
   $$("[data-dismiss-guardian]").forEach((button) => button.addEventListener("click", () => button.closest(".guardian-card")?.remove()));
 }
 
@@ -912,7 +895,8 @@ function submitAlarm(event) {
     meal: state.draft.meal || "any",
     times: makeDoseTimes(alarm.firstTime, alarm.count, alarm.interval)
   };
-  setState({
+  state = {
+    ...state,
     medicines: [...state.medicines, medicine],
     alarmDraft: alarm,
     alarmEnabled: true,
@@ -921,8 +905,16 @@ function submitAlarm(event) {
     attempts: 0,
     image: "",
     ocrText: ""
+  };
+  saveState();
+  scheduleAlarms();
+  unlockAlarmSound().then(() => {
+    beep(2);
+    vibrateAlarm(2);
   });
-  enableAlarms();
+  downloadNativeAlarmFile(medicine.times.map((time) => ({ ...medicine, doseId: `${medicine.id}-${time}`, time })), { silent: true });
+  render();
+  showToast("iPhone alarm file created. Add it to Calendar.");
 }
 
 function makeDoseTimes(firstTime, count, interval) {
@@ -1390,6 +1382,7 @@ function fireAlarm(dose) {
   state.alarmFired = [...(state.alarmFired || []).filter((key) => key.startsWith(todayKey())), alarmFireKey(dose)];
   saveState();
   beep(5);
+  vibrateAlarm(5);
   showToast(`${tr("doseTime")}: ${dose.name} ${dose.dose}`);
   if ("Notification" in window && Notification.permission === "granted") {
     try {
@@ -1417,10 +1410,9 @@ async function enableAlarms() {
   render();
 }
 
-function downloadNativeAlarmFile() {
-  const doses = allDoses().filter((dose) => !isTaken(dose.doseId));
+function downloadNativeAlarmFile(doses = allDoses().filter((dose) => !isTaken(dose.doseId)), options = {}) {
   if (!doses.length) {
-    showToast("No medication alarms to export");
+    if (!options.silent) showToast("No medication alarms to export");
     return;
   }
   const ics = buildMedicationCalendar(doses);
@@ -1434,7 +1426,7 @@ function downloadNativeAlarmFile() {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  showToast("Open the downloaded file and add it to iPhone Calendar");
+  if (!options.silent) showToast("Open the downloaded file and add it to iPhone Calendar");
 }
 
 function buildMedicationCalendar(doses) {
@@ -1529,6 +1521,14 @@ function beep(repeats = 1) {
       osc.start(start);
       osc.stop(start + 0.3);
     });
+  } catch {}
+}
+
+function vibrateAlarm(repeats = 1) {
+  if (!("vibrate" in navigator)) return;
+  try {
+    const pattern = Array.from({ length: repeats }, () => [260, 160]).flat();
+    navigator.vibrate(pattern);
   } catch {}
 }
 
