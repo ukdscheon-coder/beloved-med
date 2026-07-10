@@ -1,0 +1,15 @@
+{
+  "name": "beloved-med",
+  "short_name": "beloved-med",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f8fbf7",
+  "theme_color": "#31735f",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

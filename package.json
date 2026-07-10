@@ -1,0 +1,24 @@
+{
+  "name": "beloved-med",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Multilingual medication reminder, recognition, caregiver, and flower garden app.",
+  "scripts": {
+    "build": "node scripts/build-check.mjs",
+    "dev": "npx vite --host 127.0.0.1",
+    "preview": "npx vite --host 127.0.0.1"
+  },
+  "keywords": [
+    "medication",
+    "reminder",
+    "openfda",
+    "nhs",
+    "pwa"
+  ],
+  "author": "beloved-med",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}
