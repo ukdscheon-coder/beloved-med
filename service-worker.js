@@ -1,10 +1,10 @@
-const CACHE_NAME = "beloved-med-v12";
+const CACHE_NAME = "beloved-med-v13";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./assets/styles.css?v=12",
-  "./assets/app.js?v=12",
+  "./assets/styles.css?v=13",
+  "./assets/app.js?v=13",
   "./data/drugs.js",
   "./data/druglist.generated.js"
 ];

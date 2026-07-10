@@ -537,9 +537,10 @@ function renderAlarmPermissionCard() {
   return `
     <div class="card alarm-card" style="padding:16px">
       <strong>${state.alarmEnabled ? "Alarm ready" : "Enable real alarm"}</strong>
-      <p>${state.alarmEnabled ? "Sound and notification are prepared while this app is open." : "Tap once after setting medicine. iPhone requires this to allow alarm sound."}</p>
+      <p>${state.alarmEnabled ? "In-app sound is ready. Add iPhone Calendar alarms for native mobile reminders." : "Tap once after setting medicine. iPhone requires this to allow alarm sound."}</p>
       <div class="actions">
         <button class="btn ${state.alarmEnabled ? "secondary" : ""}" data-enable-alarms>${state.alarmEnabled ? "Test alarm" : "Enable alarm"}</button>
+        <button class="btn" data-download-native-alarms>iPhone alarm file</button>
       </div>
     </div>
   `;
@@ -758,6 +759,7 @@ function bindGlobal() {
   }));
   $$("[data-confirm]").forEach((button) => button.addEventListener("click", () => confirmDose(button.dataset.confirm)));
   $$("[data-enable-alarms]").forEach((button) => button.addEventListener("click", enableAlarms));
+  $$("[data-download-native-alarms]").forEach((button) => button.addEventListener("click", downloadNativeAlarmFile));
   $$("[data-dismiss-guardian]").forEach((button) => button.addEventListener("click", () => button.closest(".guardian-card")?.remove()));
 }
 
@@ -1356,14 +1358,24 @@ function mealFromInstruction(text = "") {
 
 function scheduleAlarms() {
   clearInterval(alarmTimer);
-  const tick = () => {
-    const hhmm = new Date().toTimeString().slice(0, 5);
-    allDoses()
-      .filter((dose) => dose.time === hhmm && !isTaken(dose.doseId) && !alarmAlreadyFired(dose))
-      .forEach(fireAlarm);
-  };
+  const tick = () => checkDueAlarms();
   tick();
   alarmTimer = setInterval(tick, 10000);
+}
+
+function checkDueAlarms() {
+  const now = new Date();
+  allDoses()
+    .filter((dose) => isDoseDueNow(dose, now) && !isTaken(dose.doseId) && !alarmAlreadyFired(dose))
+    .forEach(fireAlarm);
+}
+
+function isDoseDueNow(dose, now = new Date()) {
+  const [hour, minute] = dose.time.split(":").map(Number);
+  const due = new Date(now);
+  due.setHours(hour, minute, 0, 0);
+  const diffMs = now.getTime() - due.getTime();
+  return diffMs >= 0 && diffMs <= 2 * 60 * 1000;
 }
 
 function alarmAlreadyFired(dose) {
@@ -1403,6 +1415,91 @@ async function enableAlarms() {
   showToast("Alarm enabled");
   scheduleAlarms();
   render();
+}
+
+function downloadNativeAlarmFile() {
+  const doses = allDoses().filter((dose) => !isTaken(dose.doseId));
+  if (!doses.length) {
+    showToast("No medication alarms to export");
+    return;
+  }
+  const ics = buildMedicationCalendar(doses);
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "beloved-med-alarms.ics";
+  link.rel = "noopener";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast("Open the downloaded file and add it to iPhone Calendar");
+}
+
+function buildMedicationCalendar(doses) {
+  const now = new Date();
+  const until = new Date(now);
+  until.setDate(until.getDate() + 90);
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//beloved-med//Medication Alarms//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "X-WR-CALNAME:beloved-med medication alarms"
+  ];
+  doses.forEach((dose, index) => {
+    const start = nextDateForTime(dose.time);
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${escapeIcs(`${dose.doseId}-${index}`)}@beloved-med`,
+      `DTSTAMP:${formatIcsDateTime(now)}`,
+      `DTSTART:${formatIcsDateTime(start)}`,
+      `DTEND:${formatIcsDateTime(new Date(start.getTime() + 5 * 60 * 1000))}`,
+      `RRULE:FREQ=DAILY;UNTIL=${formatIcsDateTime(until)}`,
+      `SUMMARY:${escapeIcs(`복약 시간: ${dose.name}`)}`,
+      `DESCRIPTION:${escapeIcs(`${dose.name} ${dose.dose} ${mealLabel(dose.meal)} - beloved-med`)}`,
+      "BEGIN:VALARM",
+      "TRIGGER:-PT0M",
+      "ACTION:DISPLAY",
+      `DESCRIPTION:${escapeIcs(`복약 시간: ${dose.name} ${dose.dose}`)}`,
+      "END:VALARM",
+      "END:VEVENT"
+    );
+  });
+  lines.push("END:VCALENDAR");
+  return `${lines.join("\r\n")}\r\n`;
+}
+
+function nextDateForTime(time) {
+  const [hour, minute] = time.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hour, minute, 0, 0);
+  if (date.getTime() <= Date.now()) date.setDate(date.getDate() + 1);
+  return date;
+}
+
+function formatIcsDateTime(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    date.getUTCFullYear(),
+    pad(date.getUTCMonth() + 1),
+    pad(date.getUTCDate()),
+    "T",
+    pad(date.getUTCHours()),
+    pad(date.getUTCMinutes()),
+    pad(date.getUTCSeconds()),
+    "Z"
+  ].join("");
+}
+
+function escapeIcs(value) {
+  return String(value ?? "")
+    .replaceAll("\\", "\\\\")
+    .replaceAll(";", "\\;")
+    .replaceAll(",", "\\,")
+    .replace(/\r?\n/g, "\\n");
 }
 
 async function unlockAlarmSound() {
@@ -1446,6 +1543,14 @@ function registerServiceWorker() {
   });
 }
 
+function bindAlarmWakeChecks() {
+  window.addEventListener("focus", checkDueAlarms);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkDueAlarms();
+  });
+}
+
 render();
 scheduleAlarms();
+bindAlarmWakeChecks();
 registerServiceWorker();
