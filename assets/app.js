@@ -652,7 +652,6 @@ function renderRegistrationComplete() {
         <button data-tab-jump="search"><b>${tr("heroInfo")}</b><p>${tr("heroInfoText")}</p></button>
         <button data-tab-jump="shape"><b>${tr("heroShape")}</b><p>${tr("heroShapeText")}</p></button>
       </div>
-      <div class="notice">iPhone native alarm file was created. Open the downloaded file and add it to Calendar to receive system medication alerts.</div>
       <button class="btn" data-tab-jump="today">${tr("goToday")}</button>
     </section>
   `;
@@ -914,7 +913,7 @@ function submitAlarm(event) {
   });
   downloadNativeAlarmFile(medicine.times.map((time) => ({ ...medicine, doseId: `${medicine.id}-${time}`, time })), { silent: true });
   render();
-  showToast("iPhone alarm file created. Add it to Calendar.");
+  showToast("Alarm saved");
 }
 
 function makeDoseTimes(firstTime, count, interval) {
@@ -1426,7 +1425,7 @@ function downloadNativeAlarmFile(doses = allDoses().filter((dose) => !isTaken(do
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  if (!options.silent) showToast("Open the downloaded file and add it to iPhone Calendar");
+  if (!options.silent) showToast("Alarm file ready");
 }
 
 function buildMedicationCalendar(doses) {
