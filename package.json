@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Multilingual medication reminder, recognition, caregiver, and flower garden app.",
   "scripts": {
-    "build": "node scripts/build-check.mjs",
+    "build": "node scripts/build-check.mjs && node scripts/build-static.mjs",
     "dev": "npx vite --host 127.0.0.1",
     "preview": "npx vite --host 127.0.0.1"
   },
