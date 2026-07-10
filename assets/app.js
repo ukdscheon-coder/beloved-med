@@ -4,6 +4,7 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
 const storeKey = "beloved-med-state-v5";
 const OCR_CDN = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+const UNKNOWN_TOKEN = "__unknown__";
 
 const i18n = {
   ko: {
@@ -35,6 +36,10 @@ const i18n = {
     recognizing: "자동 인식 중...",
     readingImage: "이미지에서 글자를 읽는 중입니다.",
     failCount: "자동 인식 실패",
+    retryCapture: "다시 촬영해 주세요.",
+    newScan: "새 약 촬영",
+    suggestionLabel: "추천 약품명",
+    noSuggestions: "추천 결과가 없습니다.",
     manualTitle: "직접 입력",
     manualHelp: "자동 인식이 어렵거나 약이 정확히 무엇인지 모르면 모름을 눌러 등록하세요.",
     medName: "약 이름",
@@ -123,6 +128,10 @@ const i18n = {
     recognizing: "Recognizing...",
     readingImage: "Reading text from the image.",
     failCount: "Recognition failures",
+    retryCapture: "Please capture again.",
+    newScan: "Capture new medicine",
+    suggestionLabel: "Suggested medicines",
+    noSuggestions: "No suggestions found.",
     manualTitle: "Manual entry",
     manualHelp: "If recognition is difficult or you do not know the medicine, tap Unknown.",
     medName: "Medicine name",
@@ -211,6 +220,10 @@ const i18n = {
     recognizing: "Reconociendo...",
     readingImage: "Leyendo texto de la imagen.",
     failCount: "Fallos",
+    retryCapture: "Vuelve a capturar.",
+    newScan: "Capturar nueva medicina",
+    suggestionLabel: "Medicinas sugeridas",
+    noSuggestions: "No hay sugerencias.",
     manualTitle: "Entrada manual",
     manualHelp: "Si no sabes que medicina es, toca Desconocido.",
     medName: "Nombre",
@@ -299,6 +312,10 @@ const i18n = {
     recognizing: "認識中...",
     readingImage: "画像の文字を読んでいます。",
     failCount: "認識失敗",
+    retryCapture: "もう一度撮影してください。",
+    newScan: "新しい薬を撮影",
+    suggestionLabel: "候補の薬",
+    noSuggestions: "候補がありません。",
     manualTitle: "手入力",
     manualHelp: "薬がわからない場合は不明を押してください。",
     medName: "薬名",
@@ -396,6 +413,20 @@ function tr(key, params = {}) {
 
 function mealLabel(meal) {
   return tr(meal);
+}
+
+function isUnknownValue(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text || text === UNKNOWN_TOKEN) return true;
+  return Object.values(i18n).some((dict) => String(dict.unknown || "").trim().toLowerCase() === text);
+}
+
+function displayMedValue(value) {
+  return isUnknownValue(value) ? tr("unknown") : String(value || "");
+}
+
+function storedMedValue(value) {
+  return isUnknownValue(value) ? UNKNOWN_TOKEN : String(value || "").trim();
 }
 
 function loadState() {
@@ -559,12 +590,14 @@ function renderGuardianOptionalCard() {
 
 function renderDoseCard(dose) {
   const done = isTaken(dose.doseId);
+  const name = displayMedValue(dose.name);
+  const doseText = displayMedValue(dose.dose);
   return `
     <article class="medicine-card">
       <div class="tablet"></div>
       <div>
-        <h4>${escapeHtml(dose.name)}</h4>
-        <small>${escapeHtml(dose.dose)} · ${mealLabel(dose.meal)}</small>
+        <h4>${escapeHtml(name)}</h4>
+        <small>${escapeHtml(doseText)} · ${mealLabel(dose.meal)}</small>
       </div>
       <div>
         <div class="time-badge">${dose.time}</div>
@@ -584,13 +617,13 @@ function renderRegistration() {
 function renderCaptureRegistration() {
   return `
     <section class="grid">
+      ${renderGuardianOptionalCard()}
       <div class="hero-card pop-card">
         <div>
           <strong>${tr("startWithPhoto")}</strong>
           <p>${tr("captureHelp")}</p>
         </div>
       </div>
-      ${renderGuardianOptionalCard()}
       <input id="camera-picker" type="file" accept="image/*" capture="environment" hidden>
       <input id="gallery-picker" type="file" accept="image/*" hidden>
       <div class="document-scan-card">
@@ -603,7 +636,7 @@ function renderCaptureRegistration() {
       <button class="btn capture-main" id="take-photo">${icon("camera")} ${tr("scanCapture")}</button>
       <button class="btn secondary" id="choose-photo">${tr("chooseImage")}</button>
       ${state.image ? `<div class="preview-strip"><img src="${state.image}" alt="Captured medicine"><div><b>${state.recognizing ? tr("recognizing") : tr("autoResult")}</b><small>${escapeHtml(state.ocrText || tr("readingImage"))}</small></div></div>` : ""}
-      <div class="notice">${tr("failCount")} ${state.attempts}/3${state.attempts > 0 && state.attempts < 3 ? " · 다시 촬영해 주세요." : ""}</div>
+      <div class="notice">${tr("failCount")} ${state.attempts}/3${state.attempts > 0 && state.attempts < 3 ? ` · ${tr("retryCapture")}` : ""}</div>
     </section>
   `;
 }
@@ -620,12 +653,12 @@ function renderManualEntry() {
       <form id="manual-form" class="card form-grid" style="padding:16px">
         <div class="field">
           <label>${tr("medName")}</label>
-          <input name="name" id="medicine-name-input" value="${escapeHtml(state.draft.name)}" placeholder="Tylenol" list="medicine-suggestions" autocomplete="off">
+          <input name="name" id="medicine-name-input" value="${escapeHtml(displayMedValue(state.draft.name))}" placeholder="Tylenol" list="medicine-suggestions" autocomplete="off">
           <datalist id="medicine-suggestions">
             ${DRUGS.map((drug) => `<option value="${escapeHtml(drug.brand)}">${escapeHtml(drug.ingredient)} · ${escapeHtml(drug.strength)}</option>`).join("")}
           </datalist>
         </div>
-        <div class="field"><label>${tr("dose")}</label><input name="dose" value="${escapeHtml(state.draft.dose)}" placeholder="500mg 1 tablet"></div>
+        <div class="field"><label>${tr("dose")}</label><input name="dose" value="${escapeHtml(displayMedValue(state.draft.dose))}" placeholder="500mg 1 tablet"></div>
         <div class="field full"><label>${tr("meal")}</label><select name="meal">
           ${["before", "after", "with", "any"].map((value) => `<option value="${value}" ${state.draft.meal === value ? "selected" : ""}>${mealLabel(value)}</option>`).join("")}
         </select></div>
@@ -671,7 +704,7 @@ function renderRegistrationComplete() {
         <button data-tab-jump="search"><b>${tr("heroInfo")}</b><p>${tr("heroInfoText")}</p></button>
         <button data-tab-jump="shape"><b>${tr("heroShape")}</b><p>${tr("heroShapeText")}</p></button>
       </div>
-      <button class="btn secondary" data-tab-jump="add">${icon("camera")} 새 약 문서 스캔</button>
+      <button class="btn secondary" data-tab-jump="add">${icon("camera")} ${tr("newScan")}</button>
       <button class="btn" data-tab-jump="today">${tr("goToday")}</button>
     </section>
   `;
@@ -809,7 +842,7 @@ function bindRegistration() {
   $("#manual-form")?.addEventListener("submit", submitManual);
   $("#medicine-name-input")?.addEventListener("input", renderMedicineSuggestions);
   $("#unknown-med")?.addEventListener("click", () => {
-    state.draft = { name: tr("unknown"), dose: state.draft.dose || tr("unknown"), meal: state.draft.meal || "any" };
+    state.draft = { name: UNKNOWN_TOKEN, dose: state.draft.dose || UNKNOWN_TOKEN, meal: state.draft.meal || "any" };
     state.flow = "alarm";
     state.searchUnlocked = true;
     saveState();
@@ -875,13 +908,13 @@ function renderMedicineSuggestions(event) {
     .filter((drug) => [drug.brand, drug.generic, drug.ingredient, drug.manufacturer].filter(Boolean).join(" ").toLowerCase().includes(value))
     .slice(0, 5);
   panel.innerHTML = matches.length
-    ? `<label>추천 약품명</label><div class="suggestion-list">${matches.map((drug) => `
+    ? `<label>${tr("suggestionLabel")}</label><div class="suggestion-list">${matches.map((drug) => `
         <button type="button" class="suggestion-chip" data-suggest-drug="${drug.id}">
           <b>${escapeHtml(drug.brand)}</b>
           <small>${escapeHtml(drug.ingredient)} · ${escapeHtml(drug.strength)}</small>
         </button>
       `).join("")}</div>`
-    : `<small class="muted-text">추천 결과가 없습니다.</small>`;
+    : `<small class="muted-text">${tr("noSuggestions")}</small>`;
   $$("[data-suggest-drug]", panel).forEach((button) => button.addEventListener("click", () => {
     const drug = DRUGS.find((item) => item.id === button.dataset.suggestDrug);
     if (!drug) return;
@@ -897,8 +930,8 @@ function submitManual(event) {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   state.draft = {
-    name: String(form.get("name") || "").trim() || tr("unknown"),
-    dose: String(form.get("dose") || "").trim() || tr("unknown"),
+    name: storedMedValue(form.get("name")),
+    dose: storedMedValue(form.get("dose")),
     meal: String(form.get("meal") || "any")
   };
   state.searchUnlocked = true;
@@ -917,8 +950,8 @@ function submitAlarm(event) {
   };
   const medicine = {
     id: `med-${Date.now()}`,
-    name: state.draft.name || tr("unknown"),
-    dose: state.draft.dose || tr("unknown"),
+    name: storedMedValue(state.draft.name),
+    dose: storedMedValue(state.draft.dose),
     meal: state.draft.meal || "any",
     times: makeDoseTimes(alarm.firstTime, alarm.count, alarm.interval)
   };
@@ -993,7 +1026,7 @@ function confirmDose(doseId) {
 
 function notifyGuardian(dose) {
   if (!state.guardianPhone) return;
-  const body = encodeURIComponent(`beloved-med: ${dose.name} ${dose.dose} ${dose.time} ${tr("done")}`);
+  const body = encodeURIComponent(`beloved-med: ${displayMedValue(dose.name)} ${displayMedValue(dose.dose)} ${dose.time} ${tr("done")}`);
   window.location.href = `sms:${encodeURIComponent(state.guardianPhone)}?&body=${body}`;
 }
 
@@ -1038,8 +1071,8 @@ async function recognizeImage(dataUrl, filename = "") {
   }
   state.attempts = 0;
   state.draft = {
-    name: parsed.name || tr("unknown"),
-    dose: parsed.dose || tr("unknown"),
+    name: storedMedValue(parsed.name),
+    dose: storedMedValue(parsed.dose),
     meal: parsed.meal || "with"
   };
   state.flow = "manual";
@@ -1412,11 +1445,11 @@ function fireAlarm(dose) {
   saveState();
   beep(5);
   vibrateAlarm(5);
-  showToast(`${tr("doseTime")}: ${dose.name} ${dose.dose}`);
+  showToast(`${tr("doseTime")}: ${displayMedValue(dose.name)} ${displayMedValue(dose.dose)}`);
   if ("Notification" in window && Notification.permission === "granted") {
     try {
       new Notification("beloved-med", {
-        body: `${dose.time} ${dose.name} ${dose.dose}`,
+        body: `${dose.time} ${displayMedValue(dose.name)} ${displayMedValue(dose.dose)}`,
         tag: dose.doseId,
         renotify: true
       });
@@ -1472,6 +1505,8 @@ function buildMedicationCalendar(doses) {
   ];
   doses.forEach((dose, index) => {
     const start = nextDateForTime(dose.time);
+    const doseName = displayMedValue(dose.name);
+    const doseText = displayMedValue(dose.dose);
     lines.push(
       "BEGIN:VEVENT",
       `UID:${escapeIcs(`${dose.doseId}-${index}`)}@beloved-med`,
@@ -1479,12 +1514,12 @@ function buildMedicationCalendar(doses) {
       `DTSTART:${formatIcsDateTime(start)}`,
       `DTEND:${formatIcsDateTime(new Date(start.getTime() + 5 * 60 * 1000))}`,
       `RRULE:FREQ=DAILY;UNTIL=${formatIcsDateTime(until)}`,
-      `SUMMARY:${escapeIcs(`복약 시간: ${dose.name}`)}`,
-      `DESCRIPTION:${escapeIcs(`${dose.name} ${dose.dose} ${mealLabel(dose.meal)} - beloved-med`)}`,
+      `SUMMARY:${escapeIcs(`${tr("doseTime")}: ${doseName}`)}`,
+      `DESCRIPTION:${escapeIcs(`${doseName} ${doseText} ${mealLabel(dose.meal)} - beloved-med`)}`,
       "BEGIN:VALARM",
       "TRIGGER:-PT0M",
       "ACTION:DISPLAY",
-      `DESCRIPTION:${escapeIcs(`복약 시간: ${dose.name} ${dose.dose}`)}`,
+      `DESCRIPTION:${escapeIcs(`${tr("doseTime")}: ${doseName} ${doseText}`)}`,
       "END:VALARM",
       "END:VEVENT"
     );
