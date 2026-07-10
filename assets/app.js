@@ -581,7 +581,14 @@ function renderCaptureRegistration() {
       ${renderGuardianOptionalCard()}
       <input id="camera-picker" type="file" accept="image/*" capture="environment" hidden>
       <input id="gallery-picker" type="file" accept="image/*" hidden>
-      <button class="btn capture-main" id="take-photo">${icon("camera")} ${tr("takePhoto")}</button>
+      <div class="document-scan-card">
+        <div class="document-frame">
+          <span></span><span></span><span></span><span></span>
+          <b>Document OCR</b>
+          <small>약봉투, 처방전, 포장 라벨을 프레임 안에 맞춰 촬영</small>
+        </div>
+      </div>
+      <button class="btn capture-main" id="take-photo">${icon("camera")} 문서 스캔 촬영</button>
       <button class="btn secondary" id="choose-photo">${tr("chooseImage")}</button>
       ${state.image ? `<div class="preview-strip"><img src="${state.image}" alt="Captured medicine"><div><b>${state.recognizing ? tr("recognizing") : tr("autoResult")}</b><small>${escapeHtml(state.ocrText || tr("readingImage"))}</small></div></div>` : ""}
       <div class="notice">${tr("failCount")} ${state.attempts}/3${state.attempts > 0 && state.attempts < 3 ? " · 다시 촬영해 주세요." : ""}</div>
@@ -652,6 +659,7 @@ function renderRegistrationComplete() {
         <button data-tab-jump="search"><b>${tr("heroInfo")}</b><p>${tr("heroInfoText")}</p></button>
         <button data-tab-jump="shape"><b>${tr("heroShape")}</b><p>${tr("heroShapeText")}</p></button>
       </div>
+      <button class="btn secondary" data-tab-jump="add">${icon("camera")} 새 약 문서 스캔</button>
       <button class="btn" data-tab-jump="today">${tr("goToday")}</button>
     </section>
   `;
@@ -734,12 +742,20 @@ function bindGlobal() {
   $$("[data-lang]").forEach((button) => button.addEventListener("click", () => setState({ lang: button.dataset.lang })));
   $$("[data-tab]").forEach((button) => button.addEventListener("click", () => {
     if ((button.dataset.tab === "search" || button.dataset.tab === "shape") && !state.searchUnlocked) return showToast(tr("searchLockedToast"));
-    setState({ tab: button.dataset.tab });
+    const next = { tab: button.dataset.tab };
+    if (button.dataset.tab === "add" && state.flow === "complete") {
+      Object.assign(next, { flow: "capture", image: "", ocrText: "", recognizing: false });
+    }
+    setState(next);
   }));
   $$("[data-tab-jump]").forEach((button) => button.addEventListener("click", () => {
     const tab = button.dataset.tabJump;
     if ((tab === "search" || tab === "shape") && !state.searchUnlocked) return showToast(tr("unlockedToast"));
-    setState({ tab });
+    const next = { tab };
+    if (tab === "add" && state.flow === "complete") {
+      Object.assign(next, { flow: "capture", image: "", ocrText: "", recognizing: false });
+    }
+    setState(next);
   }));
   $$("[data-confirm]").forEach((button) => button.addEventListener("click", () => confirmDose(button.dataset.confirm)));
   $$("[data-dismiss-guardian]").forEach((button) => button.addEventListener("click", () => button.closest(".guardian-card")?.remove()));
@@ -1056,18 +1072,20 @@ async function preprocessForOcr(dataUrl) {
 async function prepareOcrBase(dataUrl) {
   const image = await loadImage(dataUrl);
   const longSide = Math.max(image.width, image.height);
-  const scale = Math.min(2.1, Math.max(0.9, 1600 / longSide));
+  const scale = Math.min(2.4, Math.max(1, 1800 / longSide));
   const width = Math.round(image.width * scale);
   const height = Math.round(image.height * scale);
   const base = document.createElement("canvas");
-  base.width = width + 32;
-  base.height = height + 32;
+  base.width = width + 56;
+  base.height = height + 56;
   const baseCtx = base.getContext("2d", { willReadFrequently: true });
   baseCtx.fillStyle = "#fff";
   baseCtx.fillRect(0, 0, base.width, base.height);
   baseCtx.imageSmoothingEnabled = true;
   baseCtx.imageSmoothingQuality = "high";
-  baseCtx.drawImage(image, 16, 16, width, height);
+  baseCtx.filter = "contrast(1.18) brightness(1.06) saturate(0.82)";
+  baseCtx.drawImage(image, 28, 28, width, height);
+  baseCtx.filter = "none";
   return base;
 }
 
