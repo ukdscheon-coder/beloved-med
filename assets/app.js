@@ -26,6 +26,9 @@ const i18n = {
     locked: "약 등록 후 활성화됩니다.",
     startWithPhoto: "사진 촬영으로 자동 인식",
     captureHelp: "약 봉투, 약 포장, 처방전을 크게 촬영하세요. 촬영 직후 제품명과 용량을 자동으로 읽습니다.",
+    scanTitle: "촬영",
+    scanHelp: "약봉투, 처방전, 포장 라벨을 프레임 안에 맞춰 촬영",
+    scanCapture: "촬영",
     takePhoto: "사진 촬영",
     chooseImage: "이미지 선택",
     autoResult: "자동 인식 결과",
@@ -111,6 +114,9 @@ const i18n = {
     locked: "Enabled after registration.",
     startWithPhoto: "Auto recognize by photo",
     captureHelp: "Photograph the medicine bag, package, or prescription clearly. The app reads name and strength right away.",
+    scanTitle: "Capture",
+    scanHelp: "Fit the medicine bag, prescription, or package label inside the frame.",
+    scanCapture: "Capture",
     takePhoto: "Take photo",
     chooseImage: "Choose image",
     autoResult: "Recognition result",
@@ -196,6 +202,9 @@ const i18n = {
     locked: "Disponible despues del registro.",
     startWithPhoto: "Reconocer por foto",
     captureHelp: "Fotografia la bolsa, envase o receta claramente. La app lee nombre y dosis.",
+    scanTitle: "Capturar",
+    scanHelp: "Coloca la bolsa, receta o etiqueta del envase dentro del marco.",
+    scanCapture: "Capturar",
     takePhoto: "Tomar foto",
     chooseImage: "Elegir imagen",
     autoResult: "Resultado",
@@ -281,6 +290,9 @@ const i18n = {
     locked: "登録後に有効になります。",
     startWithPhoto: "写真で自動認識",
     captureHelp: "薬袋、包装、処方箋を大きく撮影してください。名前と用量を自動で読み取ります。",
+    scanTitle: "撮影",
+    scanHelp: "薬袋、処方箋、包装ラベルを枠内に合わせて撮影してください。",
+    scanCapture: "撮影",
     takePhoto: "写真撮影",
     chooseImage: "画像選択",
     autoResult: "認識結果",
@@ -584,11 +596,11 @@ function renderCaptureRegistration() {
       <div class="document-scan-card">
         <div class="document-frame">
           <span></span><span></span><span></span><span></span>
-          <b>Document OCR</b>
-          <small>약봉투, 처방전, 포장 라벨을 프레임 안에 맞춰 촬영</small>
+          <b>${tr("scanTitle")}</b>
+          <small>${tr("scanHelp")}</small>
         </div>
       </div>
-      <button class="btn capture-main" id="take-photo">${icon("camera")} 문서 스캔 촬영</button>
+      <button class="btn capture-main" id="take-photo">${icon("camera")} ${tr("scanCapture")}</button>
       <button class="btn secondary" id="choose-photo">${tr("chooseImage")}</button>
       ${state.image ? `<div class="preview-strip"><img src="${state.image}" alt="Captured medicine"><div><b>${state.recognizing ? tr("recognizing") : tr("autoResult")}</b><small>${escapeHtml(state.ocrText || tr("readingImage"))}</small></div></div>` : ""}
       <div class="notice">${tr("failCount")} ${state.attempts}/3${state.attempts > 0 && state.attempts < 3 ? " · 다시 촬영해 주세요." : ""}</div>
