@@ -1,0 +1,7 @@
+name = "beloved-med"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-07-14"
+
+[vars]
+STRIPE_MODE = "subscription"
+STRIPE_ALLOW_PROMOTION_CODES = "true"

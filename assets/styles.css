@@ -381,6 +381,37 @@ button {
   margin-top: 14px;
 }
 
+.premium-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(255, 209, 47, .22), transparent 8rem),
+    linear-gradient(145deg, #ffffff, #eef6ff);
+}
+
+.premium-card strong,
+.premium-card small {
+  display: block;
+}
+
+.premium-card p {
+  margin: 4px 0 6px;
+}
+
+.premium-kicker {
+  display: inline-flex;
+  margin-bottom: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #071326;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1021,6 +1052,10 @@ button {
     grid-template-columns: 84px 1fr;
     gap: 8px;
     align-items: center;
+  }
+
+  .premium-card {
+    grid-template-columns: 1fr;
   }
 
   .tablet {

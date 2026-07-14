@@ -564,6 +564,7 @@ function renderToday() {
         <div class="adherence-ring" style="--progress:${stats.adherence}%"><span>${stats.adherence}%</span></div>
       </div>
       ${renderGuardianOptionalCard()}
+      ${renderPremiumCard()}
       <div class="stats">
         <div class="stat"><b>${state.medicines.length}</b><span>${tr("registeredMeds")}</span></div>
         <div class="stat"><b>${stats.taken}</b><span>${tr("done")}</span></div>
@@ -584,6 +585,55 @@ function renderGuardianOptionalCard() {
         <button class="btn secondary" data-tab-jump="guardian">${tr("setupGuardian")}</button>
         <button class="btn ghost" data-dismiss-guardian>${tr("skipGuardian")}</button>
       </div>
+    </div>
+  `;
+}
+
+function premiumText() {
+  const copy = {
+    ko: {
+      title: "beloved-med Premium",
+      body: "가족 복약 관리, 더 풍부한 정원 보상, 향후 고급 인식 기능을 지원합니다.",
+      action: "Premium 시작",
+      note: "Stripe 보안 결제로 이동합니다.",
+      loading: "결제 준비 중..."
+    },
+    en: {
+      title: "beloved-med Premium",
+      body: "Support family medication care, richer garden rewards, and future advanced recognition.",
+      action: "Start Premium",
+      note: "Secure checkout opens with Stripe.",
+      loading: "Preparing checkout..."
+    },
+    es: {
+      title: "beloved-med Premium",
+      body: "Apoya el cuidado familiar, mas recompensas del jardin y reconocimiento avanzado futuro.",
+      action: "Iniciar Premium",
+      note: "El pago seguro se abre con Stripe.",
+      loading: "Preparando pago..."
+    },
+    ja: {
+      title: "beloved-med Premium",
+      body: "家族の服薬管理、より豊かな庭の報酬、今後の高度な認識機能を支援します。",
+      action: "Premiumを始める",
+      note: "Stripeの安全な決済へ移動します。",
+      loading: "決済を準備中..."
+    }
+  };
+  return copy[state.lang] || copy.en;
+}
+
+function renderPremiumCard() {
+  const copy = premiumText();
+  return `
+    <div class="card premium-card">
+      <div>
+        <span class="premium-kicker">Stripe</span>
+        <strong>${copy.title}</strong>
+        <p>${copy.body}</p>
+        <small>${copy.note}</small>
+      </div>
+      <button class="btn" data-start-checkout>${copy.action}</button>
     </div>
   `;
 }
@@ -785,6 +835,7 @@ function renderGuardianSettings() {
 
 function bindGlobal() {
   $$("[data-lang]").forEach((button) => button.addEventListener("click", () => setState({ lang: button.dataset.lang })));
+  $$("[data-start-checkout]").forEach((button) => button.addEventListener("click", () => startCheckout(button)));
   $$("[data-tab]").forEach((button) => button.addEventListener("click", () => {
     if ((button.dataset.tab === "search" || button.dataset.tab === "shape") && !state.searchUnlocked) return showToast(tr("searchLockedToast"));
     const next = { tab: button.dataset.tab };
@@ -804,6 +855,27 @@ function bindGlobal() {
   }));
   $$("[data-confirm]").forEach((button) => button.addEventListener("click", () => confirmDose(button.dataset.confirm)));
   $$("[data-dismiss-guardian]").forEach((button) => button.addEventListener("click", () => button.closest(".guardian-card")?.remove()));
+}
+
+async function startCheckout(button) {
+  const copy = premiumText();
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = copy.loading;
+  try {
+    const response = await fetch("/api/create-checkout-session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ locale: state.lang })
+    });
+    const data = await response.json();
+    if (!response.ok || !data.url) throw new Error(data.error || "Checkout failed.");
+    window.location.href = data.url;
+  } catch (error) {
+    showToast(error.message || "Checkout failed.");
+    button.disabled = false;
+    button.textContent = original;
+  }
 }
 
 function bindTab() {
