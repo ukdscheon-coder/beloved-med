@@ -2,9 +2,6 @@ name = "beloved-med"
 main = "src/index.js"
 compatibility_date = "2026-07-14"
 
-[build]
-command = "npm run build"
-
 [assets]
 directory = "./dist"
 binding = "ASSETS"
