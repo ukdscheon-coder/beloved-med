@@ -1,15 +1,19 @@
 # beloved-med Cloudflare + Stripe deployment
 
-## Cloudflare Pages
+## Cloudflare Workers & Pages
 
-1. Cloudflare Dashboard > Workers & Pages > Create application > Pages.
+Cloudflare may show Pages and Workers as one combined product. Use the Worker setup screen if Pages is not shown separately.
+
+1. Cloudflare Dashboard > Workers & Pages > Create application.
 2. Connect GitHub repository: `ukdscheon-coder/beloved-med`.
-3. Build settings:
-   - Framework preset: None or Vite
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-   - Root directory: `/`
-4. Deploy.
+3. Project name: `beloved-med`.
+4. Deploy command:
+
+```text
+npx wrangler deploy
+```
+
+The `wrangler.toml` file runs `npm run build` first, serves static files from `dist`, and routes `/api/create-checkout-session` through the Worker.
 
 ## Stripe
 
@@ -24,7 +28,7 @@ Set these in Cloudflare Pages > Settings > Environment variables:
 ```text
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_PRICE_ID=price_...
-SITE_URL=https://your-cloudflare-pages-domain.pages.dev
+SITE_URL=https://your-cloudflare-workers-domain.workers.dev
 STRIPE_MODE=subscription
 STRIPE_ALLOW_PROMOTION_CODES=true
 ```
